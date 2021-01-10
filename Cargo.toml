@@ -1,15 +1,16 @@
 [package]
-name = "bellperson"
+name = "crusty3-zk"
 authors = [
   "dignifiedquire <me@dignifiedquire.com>",
   "Sean Bowe <ewillbefull@gmail.com>",
+  "Mikhail Komarov <nemo@nil.foundation>"
 ]
 description = "zk-SNARK library"
-documentation = "https://docs.rs/bellperson"
-homepage = "https://github.com/filecoin-project/bellman"
+documentation = "https://docs.rs/crusty3-zk"
+homepage = "https://github.com/nilfoundation/crusty3-zk"
 license = "MIT/Apache-2.0"
-repository = "https://github.com/filecoin-project/bellman"
-version = "0.12.3"
+repository = "https://github.com/nilfoundation/crusty3-zk"
+version = "0.1"
 readme = "README.md"
 edition = "2018"
 
@@ -37,7 +38,7 @@ blstrs = { version = "0.2.0", optional = true }
 paired = { version = "0.21.0", optional = true }
 
 # gpu feature 
-rust-gpu-tools = { version = "0.2.0", optional = true }
+rust-gpu-tools = { version = "0.3.0", optional = true }
 ff-cl-gen = { version = "0.2.0", optional = true }
 fs2 = { version = "0.4.3", optional = true }
 
