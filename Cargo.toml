@@ -10,7 +10,7 @@ documentation = "https://docs.rs/crusty3-zk"
 homepage = "https://github.com/nilfoundation/crusty3-zk"
 license = "MIT/Apache-2.0"
 repository = "https://github.com/nilfoundation/crusty3-zk"
-version = "0.1"
+version = "0.1.0"
 readme = "README.md"
 edition = "2018"
 
