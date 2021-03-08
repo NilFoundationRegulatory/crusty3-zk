@@ -1,5 +1,5 @@
 [package]
-name = "crusty3-zk"
+name = "crusty3_zk"
 authors = [
   "dignifiedquire <me@dignifiedquire.com>",
   "Sean Bowe <ewillbefull@gmail.com>",
