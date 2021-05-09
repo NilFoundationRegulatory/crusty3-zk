@@ -141,7 +141,7 @@ extern crate hex_literal;
 
 pub mod bls;
 pub mod domain;
-pub mod gadgets;
+
 pub mod gpu;
 #[cfg(feature = "groth16")]
 pub mod groth16;
