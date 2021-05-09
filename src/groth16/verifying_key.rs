@@ -216,9 +216,9 @@ pub struct PreparedVerifyingKey<E: Engine> {
     /// Pairing result of alpha*beta
     pub(crate) alpha_g1_beta_g2: E::Fqk,
     /// -gamma in G2 (used for single)
-    pub(crate) neg_gamma_g2: <E::G2Affine as PairingCurveAffine>::Prepared,
+    //pub(crate) neg_gamma_g2: <E::G2Affine as PairingCurveAffine>::Prepared,
     /// -delta in G2 (used for single)
-    pub(crate) neg_delta_g2: <E::G2Affine as PairingCurveAffine>::Prepared,
+    //pub(crate) neg_delta_g2: <E::G2Affine as PairingCurveAffine>::Prepared,
     /// gamma in G2 (used for batch)
     pub(crate) gamma_g2: <E::G2Affine as PairingCurveAffine>::Prepared,
     /// delta in G2 (used for batch)
