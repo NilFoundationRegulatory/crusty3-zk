@@ -20,8 +20,10 @@ pub fn prepare_verifying_key<E: Engine>(vk: &VerifyingKey<E>) -> PreparedVerifyi
         alpha_g1_beta_g2: E::pairing(vk.alpha_g1, vk.beta_g2),
         //neg_gamma_g2: neg_gamma.prepare(),
         //neg_delta_g2: neg_delta.prepare(),
-        gamma_g2: vk.gamma_g2.prepare(),
-        delta_g2: vk.delta_g2.prepare(),
+        //gamma_g2: vk.gamma_g2.prepare(),
+        //delta_g2: vk.delta_g2.prepare(),
+        gamma_g2: vk.gamma_g2,
+        delta_g2: vk.delta_g2,
         ic: vk.ic.clone(),
         multiscalar,
     }
@@ -37,6 +39,9 @@ pub fn verify_proof<'a, E: Engine>(
 
     let mut neg_gamma_g2 = pvk.gamma_g2.negate().prepare();
     let mut neg_delta_g2 = pvk.delta_g2.negate().prepare();
+
+    let mut gamma_g2 = pvk.gamma_g2.prepare();
+    let mut delta_g2 = pvk.delta_g2.prepare();
 
     if (primary_input.len() + 1) != pvk.ic.len() {
         return Err(SynthesisError::MalformedVerifyingKey);
