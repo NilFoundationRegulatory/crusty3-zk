@@ -31,7 +31,7 @@ pub fn prepare_verifying_key<E: Engine>(vk: &VerifyingKey<E>) -> PreparedVerifyi
 
 /// Verify a single Proof.
 pub fn verify_proof<'a, E: Engine>(
-    pvk: &'a R1CSGGPPZKSNARKVerificationKey<E>,
+    pvk: &'a PreparedVerifyingKey<E>,
     proof: &Proof<E>,
     primary_input: &[E::Fr],
 ) -> Result<bool, SynthesisError> {
