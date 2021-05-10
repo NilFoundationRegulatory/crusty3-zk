@@ -229,7 +229,8 @@ where
                     )
                 };
 
-                *ml_d = E::miller_loop(&[(&acc_d.into_affine().prepare(), &pvk.delta_g2)]);
+                let mut delta_g2 = pvk.delta_g2.prepare();
+                *ml_d = E::miller_loop(&[(&acc_d.into_affine().prepare(), &delta_g2)]);
             });
 
             // - Thread 3: Calculate MillerLoop(Accum_AB)
