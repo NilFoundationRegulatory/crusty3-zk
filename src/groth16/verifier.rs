@@ -42,8 +42,8 @@ pub fn verify_proof<'a, E: Engine>(
     let mut neg_gamma_g2 = neg_gamma_g2.prepare();
 
     let mut neg_delta_g2 = pvk.delta_g2;
-    pvk.delta_g2.negate();
-    let mut neg_delta_g2 = pvk.delta_g2.prepare();
+    neg_delta_g2.negate();
+    let mut neg_delta_g2 = neg_delta_g2.prepare();
 
     let mut gamma_g2 = pvk.gamma_g2.prepare();
     let mut delta_g2 = pvk.delta_g2.prepare();
