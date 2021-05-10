@@ -232,3 +232,15 @@ pub struct PreparedVerifyingKey<E: Engine> {
 
     pub(crate) multiscalar: multiscalar::MultiscalarPrecompOwned<E>,
 }
+
+pub struct R1CSGGPPZKSNARKVerificationKey<E: Engine> {
+    /// Pairing result of alpha*beta
+    pub(crate) alpha_g1_beta_g2: E::Fqk,
+    
+    pub(crate) gamma_g2: E::G2Affine,
+    pub(crate) delta_g2: E::G2Affine,
+    /// Copy of IC from `VerifiyingKey`.
+    pub(crate) ic: Vec<E::G1Affine>,
+
+    pub(crate) multiscalar: multiscalar::MultiscalarPrecompOwned<E>,
+}

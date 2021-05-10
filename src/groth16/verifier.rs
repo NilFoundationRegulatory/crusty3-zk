@@ -31,14 +31,19 @@ pub fn prepare_verifying_key<E: Engine>(vk: &VerifyingKey<E>) -> PreparedVerifyi
 
 /// Verify a single Proof.
 pub fn verify_proof<'a, E: Engine>(
-    pvk: &'a PreparedVerifyingKey<E>,
+    pvk: &'a R1CSGGPPZKSNARKVerificationKey<E>,
     proof: &Proof<E>,
     primary_input: &[E::Fr],
 ) -> Result<bool, SynthesisError> {
     use multiscalar::MultiscalarPrecomp;
 
-    let mut neg_gamma_g2 = pvk.gamma_g2.negate().prepare();
-    let mut neg_delta_g2 = pvk.delta_g2.negate().prepare();
+    let mut neg_gamma_g2 = pvk.gamma_g2;
+    neg_gamma_g2.negate();
+    let mut neg_gamma_g2 = neg_gamma_g2.prepare();
+
+    let mut neg_delta_g2 = pvk.delta_g2;
+    pvk.delta_g2.negate();
+    let mut neg_delta_g2 = pvk.delta_g2.prepare();
 
     let mut gamma_g2 = pvk.gamma_g2.prepare();
     let mut delta_g2 = pvk.delta_g2.prepare();
