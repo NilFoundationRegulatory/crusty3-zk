@@ -209,8 +209,9 @@ where
                     256,
                 );
 
+                let mut gamma_g2 = pvk.gamma_g2.prepare();
                 // MillerLoop(acc_g_psi, vk.gamma)
-                *ml_g = E::miller_loop(&[(&acc_g_psi.into_affine().prepare(), &pvk.gamma_g2)]);
+                *ml_g = E::miller_loop(&[(&acc_g_psi.into_affine().prepare(), &gamma_g2)]);
             });
 
             // - Thread 2: Calculate MillerLoop(Accum_Delta)
