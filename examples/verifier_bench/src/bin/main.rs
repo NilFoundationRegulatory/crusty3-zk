@@ -9,11 +9,11 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use bellperson::groth16::{
+use crusty3_zk::groth16::{
     create_random_proof_batch, generate_random_parameters, prepare_verifying_key,
     verify_proofs_batch, Parameters, Proof, VerifyingKey,
 };
-use bellperson::{
+use crusty3_zk::{
     bls::{Bls12, Engine, Fr},
     Circuit, ConstraintSystem, SynthesisError,
 };
