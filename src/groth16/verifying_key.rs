@@ -233,14 +233,35 @@ pub struct PreparedVerifyingKey<E: Engine> {
     pub(crate) multiscalar: multiscalar::MultiscalarPrecompOwned<E>,
 }
 
-pub struct R1CSGGPPZKSNARKVerificationKey<E: Engine> {
+pub fn read_groth16vk_from_byteblob(proof_bytes: &[u8]) -> io::Result<Self> {
+    let mut alpha_g1_beta_g2 = <E::G1Affine as CurveAffine>::empty();
+    let proof_a_start = 0;
+    let proof_a_end = proof_a_start + <E::G1Affine as CurveAffine>::size();
+    proof_a_repr.as_mut().copy_from_slice(&proof_bytes[proof_a_start..proof_a_end]);
+
+    let mut proof_b_repr = <E::G2Affine as CurveAffine>::empty();
+    let proof_b_start = 0;
+    let proof_b_end = proof_b_start + <E::G2Affine as CurveAffine>::size();
+    proof_b_repr.as_mut().copy_from_slice(&proof_bytes[proof_b_start..proof_b_end]);
+
+    let mut proof_c_repr = <E::G1Affine as CurveAffine>::empty();
+    let proof_c_start = 0;
+    let proof_c_end = proof_c_start + <E::G1Affine as CurveAffine>::size();
+    proof_c_repr.as_mut().copy_from_slice(&proof_cytes[proof_c_start..proof_c_end]);
+
+    let proof = Proof::<E> {a: proof_a_repr, 
+                            b: proof_b_repr,
+                            c: proof_c_repr};
+
+    Ok(proof)
+}
+
+pub struct GROTH16VerificationKey<E: Engine> {
     /// Pairing result of alpha*beta
     pub(crate) alpha_g1_beta_g2: E::Fqk,
     
     pub(crate) gamma_g2: E::G2Affine,
     pub(crate) delta_g2: E::G2Affine,
     /// Copy of IC from `VerifiyingKey`.
-    pub(crate) ic: Vec<E::G1Affine>,
-
-    pub(crate) multiscalar: multiscalar::MultiscalarPrecompOwned<E>,
+    pub(crate) ic: Vec<E::G1Affine>
 }

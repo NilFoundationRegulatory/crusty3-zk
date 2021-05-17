@@ -4,6 +4,7 @@ use groupy::{CurveAffine, EncodedPoint};
 
 use crate::bls::Engine;
 
+
 #[derive(Clone, Debug)]
 pub struct Proof<E: Engine> {
     pub a: E::G1Affine,
@@ -30,6 +31,29 @@ impl<E: Engine> Proof<E> {
         let mut bytes = vec![0u8; Self::size()];
         reader.read_exact(&mut bytes)?;
         let proof = Self::read_many(&bytes, 1)?.pop().unwrap();
+
+        Ok(proof)
+    }
+
+    pub fn read_from_byteblob(proof_bytes: &[u8]) -> io::Result<Self> {
+        let mut proof_a_repr = <E::G1Affine as CurveAffine>::empty();
+        let proof_a_start = 0;
+        let proof_a_end = proof_a_start + <E::G1Affine as CurveAffine>::size();
+        proof_a_repr.as_mut().copy_from_slice(&proof_bytes[proof_a_start..proof_a_end]);
+
+        let mut proof_b_repr = <E::G1Affine as CurveAffine>::empty();
+        let proof_b_start = 0;
+        let proof_b_end = proof_b_start + <E::G1Affine as CurveAffine>::size();
+        proof_b_repr.as_mut().copy_from_slice(&proof_bytes[proof_b_start..proof_b_end]);
+
+        let mut proof_c_repr = <E::G1Affine as CurveAffine>::empty();
+        let proof_c_start = 0;
+        let proof_c_end = proof_c_start + <E::G1Affine as CurveAffine>::size();
+        proof_c_repr.as_mut().copy_from_slice(&proof_cytes[proof_c_start..proof_c_end]);
+
+        let proof = Proof::<E> {a: proof_a_repr, 
+                                b: proof_b_repr,
+                                c: proof_c_repr};
 
         Ok(proof)
     }
@@ -213,6 +237,14 @@ mod test_with_bls12_381 {
         let prf = Proof::<Bls12> {a: paired::bls12_381::G1Affine::one(),
             b: paired::bls12_381::G2Affine::one(),
             c: paired::bls12_381::G1Affine::one()};
+
+        // let rng = &mut thread_rng();
+
+        // let random_proof = Proof {
+        //         a: paired::bls12_381::G1Projective::random(&mut rng).into_affine(),
+        //         b: paired::bls12_381::G2Projective::random(&mut rng).into_affine(),
+        //         c: paired::bls12_381::G1Projective::random(&mut rng).into_affine(),
+        //     };
 
         println!("Print a after proof creation: {}", prf.a);
         println!("Print b after proof creation: {}", prf.b);

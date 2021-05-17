@@ -209,6 +209,38 @@ fn main() {
             (inputs, proofs)
         };
 
+        let vk = params.vk;
+
+        println!("Print alpha_g1 verification key: {}", vk.alpha_g1);
+        println!("Print beta_g1 verification key: {}", vk.beta_g1);
+        println!("Print beta_g2 verification key: {}", vk.beta_g2);
+        println!("Print gamma_g2 verification key: {}", vk.gamma_g2);
+        println!("Print delta_g1 verification key: {}", vk.delta_g1);
+        println!("Print delta_g2 verification key: {}", vk.delta_g2);
+        //println!("Print ic verification key: {}", vk.ic);
+
+        let mut v = vec![];
+        vk.write(&mut v).unwrap();
+
+        println!("Proof vector size: {}", v.len());
+        println!("{:02x?}", v);
+
+        println!("Print a after proof creation: {}", proofs[0].a);
+        println!("Print b after proof creation: {}", proofs[0].b);
+        println!("Print c after proof creation: {}", proofs[0].c);
+
+        let mut v = vec![];
+        proofs[0].write(&mut v).unwrap();
+
+        println!("Proof vector size: {}", v.len());
+        println!("{:01x?}", v);
+
+        let de_prf = Proof::<Bls12>::read(&v[..]).unwrap();
+
+        println!("Print a after proof decoding: {}", de_prf.a);
+        println!("Print b after proof decoding: {}", de_prf.b);
+        println!("Print c after proof decoding: {}", de_prf.c);
+
         for _ in 0..opts.samples {
             let pref = proofs.iter().collect::<Vec<&_>>();
             println!(

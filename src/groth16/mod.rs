@@ -2,9 +2,6 @@
 //!
 //! [Groth16]: https://eprint.iacr.org/2016/260
 
-#[cfg(test)]
-mod tests;
-
 mod ext;
 mod generator;
 mod mapped_params;

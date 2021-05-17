@@ -3,7 +3,7 @@ use ff::{Field, PrimeField};
 use groupy::{CurveAffine, CurveProjective};
 use rayon::prelude::*;
 
-use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey};
+use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey};
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
 
@@ -27,6 +27,41 @@ pub fn prepare_verifying_key<E: Engine>(vk: &VerifyingKey<E>) -> PreparedVerifyi
         ic: vk.ic.clone(),
         multiscalar,
     }
+}
+
+pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVerifyingKey<E> {
+    //let mut neg_gamma = vk.gamma_g2;
+    //neg_gamma.negate();
+    //let mut neg_delta = vk.delta_g2;
+    //neg_delta.negate();
+
+    let multiscalar = multiscalar::precompute_fixed_window(&vk.ic, multiscalar::WINDOW_SIZE);
+
+    PreparedVerifyingKey {
+        alpha_g1_beta_g2: E::pairing(vk.alpha_g1, vk.beta_g2),
+        //neg_gamma_g2: neg_gamma.prepare(),
+        //neg_delta_g2: neg_delta.prepare(),
+        //gamma_g2: vk.gamma_g2.prepare(),
+        //delta_g2: vk.delta_g2.prepare(),
+        gamma_g2: vk.gamma_g2,
+        delta_g2: vk.delta_g2,
+        ic: vk.ic.clone(),
+        multiscalar,
+    }
+}
+
+/// Verify a single Proof.
+pub fn verify_groth16_proof<'a, E: Engine>(
+    groth16_vk: &'a GROTH16VerificationKey<E>,
+    proof: &Proof<E>,
+    primary_input: &[E::Fr],
+) -> Result<bool, SynthesisError> {
+
+    let pvk = groth16vk_to_pvk(groth16_vk);
+
+    let result = verify_proof(pvk, proof, primary_input);
+
+    Ok(result);
 }
 
 /// Verify a single Proof.
