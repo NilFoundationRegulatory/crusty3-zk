@@ -3,7 +3,8 @@ use ff::{Field, PrimeField};
 use groupy::{CurveAffine, CurveProjective};
 use rayon::prelude::*;
 
-use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey};
+use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey, groth16_vk_from_byteblob, 
+    groth16_proof_from_byteblob, groth16_primary_input_from_byteblob};
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
 
@@ -48,6 +49,17 @@ pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVe
         ic: vk.ic.clone(),
         multiscalar,
     }
+}
+
+pub fn verify_groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<bool, SynthesisError> {
+
+    let groth16_vk = groth16_vk_from_byteblob (proof_bytes);
+    let groth16_proof = groth16_proof_from_byteblob (proof_bytes);
+    let groth16_primary_input = groth16_primary_input_from_byteblob (proof_bytes);
+
+    let result = verify_groth16_proof(groth16_vk, groth16_proof, groth16_primary_input);
+
+    Ok(result);
 }
 
 /// Verify a single Proof.
