@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 crusty3_zk = { path = "../..",  default-features = false }
-serde_json = "1.0"
 fff = "0.2"
 groupy = "0.3.1"
 structopt = { version = "0.3", default-features = false }
@@ -21,5 +20,3 @@ gpu = ["crusty3_zk/gpu"]
 groth16 = ["crusty3_zk/groth16"]
 blst = ["crusty3_zk/blst"]
 pairing = ["crusty3_zk/pairing"]
-pairing-serde = ["paired/serde"]
-
