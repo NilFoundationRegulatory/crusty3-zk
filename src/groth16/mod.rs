@@ -11,6 +11,8 @@ mod prover;
 mod verifier;
 mod verifying_key;
 
+mod marshalling;
+
 mod multiscalar;
 
 pub use self::ext::*;
@@ -21,3 +23,5 @@ pub use self::proof::*;
 pub use self::prover::*;
 pub use self::verifier::*;
 pub use self::verifying_key::*;
+
+pub use self::marshalling::*;

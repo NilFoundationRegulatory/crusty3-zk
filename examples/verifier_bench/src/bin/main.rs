@@ -153,108 +153,197 @@ struct Opts {
     dummy: bool,
 }
 
+// fn main() {
+//     let rng = &mut thread_rng();
+//     pretty_env_logger::init_timed();
+
+//     let opts = Opts::from_args();
+//     if opts.gpu {
+//         std::env::set_var("BELLMAN_VERIFIER", "gpu");
+//     } else {
+//         std::env::set_var("BELLMAN_NO_GPU", "1");
+//     }
+
+//     let circuit = DummyDemo {
+//         public: opts.public,
+//         private: opts.private,
+//     };
+//     let circuits = vec![circuit.clone(); opts.proofs];
+
+//     let params = if opts.dummy {
+//         dummy_params::<Bls12, _>(opts.public, opts.private, rng)
+//     } else {
+//         println!("Generating params... (You can skip this by passing `--dummy` flag)");
+//         generate_random_parameters(circuit.clone(), rng).unwrap()
+//     };
+//     let pvk = prepare_verifying_key(&params.vk);
+
+//     if opts.prove {
+//         println!("Proving...");
+
+//         for _ in 0..opts.samples {
+//             let (_, took) =
+//                 timer!(create_random_proof_batch(circuits.clone(), &params, rng).unwrap());
+//             println!("Proof generation finished in {}ms", took);
+//         }
+//     }
+
+//     if opts.verify {
+//         println!("Verifying...");
+
+//         let (inputs, proofs) = if opts.dummy {
+//             (
+//                 dummy_inputs::<Bls12, _>(opts.public, rng),
+//                 dummy_proofs::<Bls12, _>(opts.proofs, rng),
+//             )
+//         } else {
+//             let mut inputs = Vec::new();
+//             let mut num = Fr::one();
+//             num.double();
+//             for _ in 0..opts.public {
+//                 inputs.push(num);
+//                 num.square();
+//             }
+//             println!("(Generating valid proofs...)");
+//             let proofs = create_random_proof_batch(circuits.clone(), &params, rng).unwrap();
+//             (inputs, proofs)
+//         };
+
+//         let vk = params.vk;
+
+//         println!("Print alpha_g1 verification key: {}", vk.alpha_g1);
+//         println!("Print beta_g1 verification key: {}", vk.beta_g1);
+//         println!("Print beta_g2 verification key: {}", vk.beta_g2);
+//         println!("Print gamma_g2 verification key: {}", vk.gamma_g2);
+//         println!("Print delta_g1 verification key: {}", vk.delta_g1);
+//         println!("Print delta_g2 verification key: {}", vk.delta_g2);
+//         //println!("Print ic verification key: {}", vk.ic);
+
+//         let mut v = vec![];
+//         vk.write(&mut v).unwrap();
+
+//         println!("Proof vector size: {}", v.len());
+//         println!("{:02x?}", v);
+
+//         println!("Print a after proof creation: {}", proofs[0].a);
+//         println!("Print b after proof creation: {}", proofs[0].b);
+//         println!("Print c after proof creation: {}", proofs[0].c);
+
+//         let mut v = vec![];
+//         proofs[0].write(&mut v).unwrap();
+
+//         println!("Proof vector size: {}", v.len());
+//         println!("{:01x?}", v);
+
+//         let de_prf = Proof::<Bls12>::read(&v[..]).unwrap();
+
+//         println!("Print a after proof decoding: {}", de_prf.a);
+//         println!("Print b after proof decoding: {}", de_prf.b);
+//         println!("Print c after proof decoding: {}", de_prf.c);
+
+//         for _ in 0..opts.samples {
+//             let pref = proofs.iter().collect::<Vec<&_>>();
+//             println!(
+//                 "{} proofs, each having {} public inputs...",
+//                 opts.proofs, opts.public
+//             );
+//             let (valid, took) = timer!(verify_proofs_batch(
+//                 &pvk,
+//                 rng,
+//                 &pref[..],
+//                 &vec![inputs.clone(); opts.proofs]
+//             )
+//             .unwrap());
+//             println!("Verification finished in {}ms (Valid: {})", took, valid);
+//         }
+//     }
+// }
+
+fn get_file_as_byte_vec(filename: &String) -> Vec<u8> {
+
+    use std::fs::File;
+    use std::io::Read;
+    use std::fs;
+
+    let mut f = File::open(&filename).expect("no file found");
+    let metadata = fs::metadata(&filename).expect("unable to read metadata");
+    let mut buffer = vec![0; metadata.len() as usize];
+    f.read(&mut buffer).expect("buffer overflow");
+
+    buffer
+}
+
 fn main() {
-    let rng = &mut thread_rng();
-    pretty_env_logger::init_timed();
+    
+    use crusty3_zk::bls::{Bls12, Fr, Fq, FqRepr};
+    use crusty3_zk::groth16::{fp_process, groth16_proof_from_byteblob};
+    use std::fs::read;
+    use groupy::{CurveAffine, EncodedPoint};
 
-    let opts = Opts::from_args();
-    if opts.gpu {
-        std::env::set_var("BELLMAN_VERIFIER", "gpu");
-    } else {
-        std::env::set_var("BELLMAN_NO_GPU", "1");
-    }
+    extern crate serde_json;
 
-    let circuit = DummyDemo {
-        public: opts.public,
-        private: opts.private,
-    };
-    let circuits = vec![circuit.clone(); opts.proofs];
+    let mut byteblob = std::fs::read("data.bin").unwrap();
 
-    let params = if opts.dummy {
-        dummy_params::<Bls12, _>(opts.public, opts.private, rng)
-    } else {
-        println!("Generating params... (You can skip this by passing `--dummy` flag)");
-        generate_random_parameters(circuit.clone(), rng).unwrap()
-    };
-    let pvk = prepare_verifying_key(&params.vk);
+    let g1_byteblob_size = <<crusty3_zk::bls::Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
+    let g2_byteblob_size = <<crusty3_zk::bls::Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
 
-    if opts.prove {
-        println!("Proving...");
+    let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;
 
-        for _ in 0..opts.samples {
-            let (_, took) =
-                timer!(create_random_proof_batch(circuits.clone(), &params, rng).unwrap());
-            println!("Proof generation finished in {}ms", took);
-        }
-    }
+    // let de_prf = Proof::<Bls12>::read(&byteblob[..proof_byteblob_size]).unwrap();
 
-    if opts.verify {
-        println!("Verifying...");
+    let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]).unwrap();
 
-        let (inputs, proofs) = if opts.dummy {
-            (
-                dummy_inputs::<Bls12, _>(opts.public, rng),
-                dummy_proofs::<Bls12, _>(opts.proofs, rng),
-            )
-        } else {
-            let mut inputs = Vec::new();
-            let mut num = Fr::one();
-            num.double();
-            for _ in 0..opts.public {
-                inputs.push(num);
-                num.square();
-            }
-            println!("(Generating valid proofs...)");
-            let proofs = create_random_proof_batch(circuits.clone(), &params, rng).unwrap();
-            (inputs, proofs)
-        };
+    println!("Print a after proof decoding: {}, size in byteblob: {}", de_prf.a, g1_byteblob_size);
+    println!("Print b after proof decoding: {}, size in byteblob: {}", de_prf.b, g2_byteblob_size);
+    println!("Print c after proof decoding: {}, size in byteblob: {}", de_prf.c, g1_byteblob_size);
 
-        let vk = params.vk;
+    println!("Overall proof size in byteblob: {}", proof_byteblob_size);
 
-        println!("Print alpha_g1 verification key: {}", vk.alpha_g1);
-        println!("Print beta_g1 verification key: {}", vk.beta_g1);
-        println!("Print beta_g2 verification key: {}", vk.beta_g2);
-        println!("Print gamma_g2 verification key: {}", vk.gamma_g2);
-        println!("Print delta_g1 verification key: {}", vk.delta_g1);
-        println!("Print delta_g2 verification key: {}", vk.delta_g2);
-        //println!("Print ic verification key: {}", vk.ic);
+    // let arr = [
+    //         0x2058eebaac3db022u64,
+    //         0xd8f94159af393618u64,
+    //         0x4e041f53ff779974u64,
+    //         0x03a5f678559fecdcu64,
+    //         0xcdb85eca3da1f440u64,
+    //         0x006d55d738a89daau64,
+    //     ];
 
-        let mut v = vec![];
-        vk.write(&mut v).unwrap();
+    // let example_fp = Fq::from_repr(FqRepr(arr)).unwrap();
 
-        println!("Proof vector size: {}", v.len());
-        println!("{:02x?}", v);
+    // println!("Print example_fp before coding: {}", example_fp);
 
-        println!("Print a after proof creation: {}", proofs[0].a);
-        println!("Print b after proof creation: {}", proofs[0].b);
-        println!("Print c after proof creation: {}", proofs[0].c);
+    // use byteorder::{ByteOrder, BigEndian, LittleEndian};
 
-        let mut v = vec![];
-        proofs[0].write(&mut v).unwrap();
+    // let c2 = vec![
+    //         0x20u8, 0x58u8, 0xeeu8, 0xbau8, 0xacu8, 0x3du8, 0xb0u8, 0x22u8, 
+    //         0xd8u8, 0xf9u8, 0x41u8, 0x59u8, 0xafu8, 0x39u8, 0x36u8, 0x18u8,
+    //         0x4eu8, 0x04u8, 0x1fu8, 0x53u8, 0xffu8, 0x77u8, 0x99u8, 0x74u8,
+    //         0x03u8, 0xa5u8, 0xf6u8, 0x78u8, 0x55u8, 0x9fu8, 0xecu8, 0xdcu8,
+    //         0xcdu8, 0xb8u8, 0x5eu8, 0xcau8, 0x3du8, 0xa1u8, 0xf4u8, 0x40u8,
+    //         0x00u8, 0x6du8, 0x55u8, 0xd7u8, 0x38u8, 0xa8u8, 0x9du8, 0xaau8,
+    //     ];
+    
+    let fp_byteblob_size = 48;
+    let fp_byteblob : Vec<u8> = byteblob[proof_byteblob_size..proof_byteblob_size+fp_byteblob_size].to_vec();
 
-        println!("Proof vector size: {}", v.len());
-        println!("{:01x?}", v);
+    println!("Print c2 before coding: {:02x?}", fp_byteblob);
 
-        let de_prf = Proof::<Bls12>::read(&v[..]).unwrap();
+    // let rdr = vec![1, 0, 0, 0, 2, 0, 0, 0, 4, 0, 0, 0];
+    // let mut dst = [0; 6];
+    // LittleEndian::read_u64_into(&fp_byteblob, &mut dst);
 
-        println!("Print a after proof decoding: {}", de_prf.a);
-        println!("Print b after proof decoding: {}", de_prf.b);
-        println!("Print c after proof decoding: {}", de_prf.c);
+    //println!("Print c2 u64 array before decoding: {:016x?}", dst);
+    // assert_eq!([1,2,4], dst);
+    // let mut bytes = [0; 6*8];
+    // BigEndian::write_u64_into(&dst, &mut bytes);
+    // assert_eq!(c2, bytes);
 
-        for _ in 0..opts.samples {
-            let pref = proofs.iter().collect::<Vec<&_>>();
-            println!(
-                "{} proofs, each having {} public inputs...",
-                opts.proofs, opts.public
-            );
-            let (valid, took) = timer!(verify_proofs_batch(
-                &pvk,
-                rng,
-                &pref[..],
-                &vec![inputs.clone(); opts.proofs]
-            )
-            .unwrap());
-            println!("Verification finished in {}ms (Valid: {})", took, valid);
-        }
-    }
+    // println!("Print c2 after decoding: {:02x?}", bytes.to_vec());
+
+    //let c21 = Fq::from_repr(FqRepr(dst)).unwrap();
+
+    let c21 = fp_process::<Bls12>(&byteblob[proof_byteblob_size..proof_byteblob_size+fp_byteblob_size]).unwrap();
+
+    println!("Print c21 after decoding: {}", c21);
+
 }

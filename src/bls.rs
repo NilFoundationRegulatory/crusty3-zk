@@ -8,7 +8,7 @@ pub use blstrs::{
 #[cfg(feature = "pairing")]
 pub use paired::{
     bls12_381::{
-        Bls12, Fq, Fq12, Fq2, FqRepr, Fr, FrRepr, G1Affine, G1Compressed, G1Uncompressed, G2Affine,
+        Bls12, Fq, Fq6, Fq12, Fq2, FqRepr, Fr, FrRepr, G1Affine, G1Compressed, G1Uncompressed, G2Affine,
         G2Compressed, G2Prepared, G2Uncompressed, G1 as G1Projective, G2 as G2Projective,
     },
     Engine, PairingCurveAffine,

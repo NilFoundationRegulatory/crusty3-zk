@@ -3,8 +3,7 @@ use ff::{Field, PrimeField};
 use groupy::{CurveAffine, CurveProjective};
 use rayon::prelude::*;
 
-use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey, groth16_vk_from_byteblob, 
-    groth16_proof_from_byteblob, groth16_primary_input_from_byteblob};
+use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey};
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
 
@@ -39,7 +38,7 @@ pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVe
     let multiscalar = multiscalar::precompute_fixed_window(&vk.ic, multiscalar::WINDOW_SIZE);
 
     PreparedVerifyingKey {
-        alpha_g1_beta_g2: E::pairing(vk.alpha_g1, vk.beta_g2),
+        alpha_g1_beta_g2: vk.alpha_g1_beta_g2,
         //neg_gamma_g2: neg_gamma.prepare(),
         //neg_delta_g2: neg_delta.prepare(),
         //gamma_g2: vk.gamma_g2.prepare(),
@@ -51,30 +50,30 @@ pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVe
     }
 }
 
-pub fn verify_groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<bool, SynthesisError> {
+// pub fn verify_groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<bool, SynthesisError> {
 
-    let groth16_vk = groth16_vk_from_byteblob (proof_bytes);
-    let groth16_proof = groth16_proof_from_byteblob (proof_bytes);
-    let groth16_primary_input = groth16_primary_input_from_byteblob (proof_bytes);
+//     let groth16_vk = groth16_vk_from_byteblob (proof_bytes);
+//     let groth16_proof = groth16_proof_from_byteblob (proof_bytes);
+//     let groth16_primary_input = groth16_primary_input_from_byteblob (proof_bytes);
 
-    let result = verify_groth16_proof(groth16_vk, groth16_proof, groth16_primary_input);
+//     let result = verify_groth16_proof(groth16_vk, groth16_proof, groth16_primary_input);
 
-    Ok(result);
-}
+//     Ok(result);
+// }
 
-/// Verify a single Proof.
-pub fn verify_groth16_proof<'a, E: Engine>(
-    groth16_vk: &'a GROTH16VerificationKey<E>,
-    proof: &Proof<E>,
-    primary_input: &[E::Fr],
-) -> Result<bool, SynthesisError> {
+// /// Verify a single Proof.
+// pub fn verify_groth16_proof<'a, E: Engine>(
+//     groth16_vk: &'a GROTH16VerificationKey<E>,
+//     proof: &Proof<E>,
+//     primary_input: &[E::Fr],
+// ) -> Result<bool, SynthesisError> {
 
-    let pvk = groth16vk_to_pvk(groth16_vk);
+//     let pvk = groth16vk_to_pvk(groth16_vk);
 
-    let result = verify_proof(pvk, proof, primary_input);
+//     let result = verify_proof(pvk, proof, primary_input);
 
-    Ok(result);
-}
+//     Ok(result);
+// }
 
 /// Verify a single Proof.
 pub fn verify_proof<'a, E: Engine>(
