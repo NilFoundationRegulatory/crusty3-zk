@@ -10,6 +10,18 @@ use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16Verif
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
 
+pub fn std_size_t_process(proof_bytes: &[u8]) -> Result<usize, SynthesisError>{
+
+    let std_size_byteblob_size = 4;
+
+    let fr_byteblob : Vec<u8> = proof_bytes[..std_size_byteblob_size].to_vec();
+
+    let mut dst = [0; 1];
+    LittleEndian::read_u32_into(&fr_byteblob, &mut dst);
+
+    Ok(dst[0] as usize)
+}
+
 pub fn fr_process<E: Engine>(proof_bytes: &[u8]) -> Result<Fr, SynthesisError>{
 
     let fr_byteblob_size = 32;
@@ -86,8 +98,6 @@ pub fn g1_affine_process<E: Engine>(proof_bytes: &[u8]) -> Result<E::G1Affine, S
         let end = start + g1_byteblob_size;
         g1_repr.as_mut().copy_from_slice(&proof_bytes[start..end]);
 
-        // let mut g1_repr = g1_repr as <<<E as Engine>::G1Affine as groupy::CurveAffine>::Compressed as groupy::EncodedPoint>;
-
         let g1_affine_element = g1_repr
             .into_affine()
             .map_err(|e| io::Error::new(io::ErrorKind::InvalidData, e))
@@ -132,12 +142,14 @@ pub fn g2_affine_process<E: Engine>(proof_bytes: &[u8]) -> Result<E::G2Affine, S
 }
 
 pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<E::G1Affine>, SynthesisError>{
+    let std_size_byteblob_size = 4;
+
     let g1_byteblob_size = <E::G1Affine as CurveAffine>::Compressed::size();
-    let accumulation_vector_size = proof_bytes.len()/g1_byteblob_size;
+    let accumulation_vector_size = (proof_bytes.len() - std_size_byteblob_size)/g1_byteblob_size;
     let mut accumulation_vector = Vec::new();
 
     for i in 0..accumulation_vector_size {
-        accumulation_vector.push(g1_affine_process::<E>(&proof_bytes[i*g1_byteblob_size..(i+1)*g1_byteblob_size]).unwrap());
+        accumulation_vector.push(g1_affine_process::<E>(&proof_bytes[std_size_byteblob_size + i*g1_byteblob_size..std_size_byteblob_size + (i+1)*g1_byteblob_size]).unwrap());
     }
 
     Ok(accumulation_vector)
@@ -152,6 +164,7 @@ pub fn groth16_vk_from_byteblob(proof_bytes: &[u8]) -> Result<GROTH16Verificatio
     let mut alpha_g1_beta_g2_processed = fp12_2over3over2_process::<Bls12>(&proof_bytes[..fqk_byteblob_size]).unwrap();
     let mut gamma_g2_processed = g2_affine_process::<Bls12>(&proof_bytes[fqk_byteblob_size..fqk_byteblob_size+g2_byteblob_size]).unwrap();
     let mut delta_g2_processed = g2_affine_process::<Bls12>(&proof_bytes[fqk_byteblob_size+g2_byteblob_size..fqk_byteblob_size+2*g2_byteblob_size]).unwrap();
+
     let mut ic_processed = accumulation_vector_process::<Bls12>(&proof_bytes[fqk_byteblob_size+2*g2_byteblob_size..]).unwrap();
 
     let mut alpha_g1_beta_g2_processed = alpha_g1_beta_g2_processed as <paired::bls12_381::Bls12 as Engine>::Fqk;
@@ -182,12 +195,13 @@ pub fn groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<Proo
 }
 
 pub fn groth16_primary_input_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<Fr>, SynthesisError>{
+    
     let fr_byteblob_size = 32;
     let groth16_primary_input_size = proof_bytes.len()/fr_byteblob_size;
     let mut groth16_primary_input = Vec::new();
 
     for i in 0..groth16_primary_input_size {
-        groth16_primary_input.push(fr_process::<E>(&proof_bytes[i*fr_byteblob_size..(i+1)*fr_byteblob_size]).unwrap());
+        groth16_primary_input.push(fr_process::<E>(&proof_bytes[i*fr_byteblob_size.. (i+1)*fr_byteblob_size]).unwrap());
     }
 
     Ok(groth16_primary_input)

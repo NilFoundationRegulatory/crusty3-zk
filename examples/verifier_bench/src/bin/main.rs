@@ -230,7 +230,7 @@ struct Opts {
 fn main() {
     
     use crusty3_zk::bls::{Bls12, Fr, Fq, FqRepr};
-    use crusty3_zk::groth16::{fp_process, groth16_proof_from_byteblob};
+    use crusty3_zk::groth16::{fp_process, groth16_proof_from_byteblob, groth16_primary_input_from_byteblob, groth16_vk_from_byteblob, std_size_t_process, verify_groth16_proof};
     use std::fs::read;
     use groupy::{CurveAffine, EncodedPoint};
 
@@ -239,7 +239,11 @@ fn main() {
     let g1_byteblob_size = <<crusty3_zk::bls::Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
     let g2_byteblob_size = <<crusty3_zk::bls::Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
     let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;
+    let fr_byteblob_size = 32;
     let fp_byteblob_size = 48;
+    let gt_byteblob_size = 12 * fp_byteblob_size;
+
+    println!("Proof byteblob size: {}", proof_byteblob_size);
 
     let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]).unwrap();
 
@@ -247,13 +251,26 @@ fn main() {
     println!("Print b after proof decoding: {}, size in byteblob: {}", de_prf.b, g2_byteblob_size);
     println!("Print c after proof decoding: {}, size in byteblob: {}", de_prf.c, g1_byteblob_size);
 
-    println!("Overall proof size in byteblob: {}", proof_byteblob_size);
+    let primary_input_byteblob_size = fr_byteblob_size * std_size_t_process(&byteblob[proof_byteblob_size..proof_byteblob_size+4]).unwrap();
+
+    println!("Primary input byteblob size: {}", primary_input_byteblob_size);
+
+    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[proof_byteblob_size + 4..proof_byteblob_size + 4 + primary_input_byteblob_size]).unwrap();
     
-    let c21 = fp_process::<Bls12>(&byteblob[proof_byteblob_size..proof_byteblob_size+fp_byteblob_size]).unwrap();
+    println!("Print primary input after decoding:");
+    for x in de_pi.iter() {
+        println!("{}", x);
+    }
 
-    println!("Print c21 after decoding: {}", c21);
+    let de_vk = groth16_vk_from_byteblob(&byteblob[proof_byteblob_size + 4 + primary_input_byteblob_size..]).unwrap();
 
-    let verified = verify_groth16_proof_from_byteblob::<Bls12>(&byteblob).unwrap();
+    println!("Overall proof size in byteblob: {}", proof_byteblob_size);
+        
+    // let c21 = fp_process::<Bls12>(&byteblob[proof_byteblob_size..proof_byteblob_size+fp_byteblob_size]).unwrap();
+
+    // println!("Print c21 after decoding: {}", c21);
+
+    let verified = verify_groth16_proof::<Bls12>(&de_vk, &de_prf, &de_pi).unwrap();
 
     println!("Verified: {}", verified);
 }
