@@ -1,10 +1,11 @@
 use crate::bls::{Bls12, Engine, PairingCurveAffine};
 use ff::{Field, PrimeField};
-use groupy::{CurveAffine, CurveProjective};
+use groupy::{CurveAffine, CurveProjective, EncodedPoint};
 use rayon::prelude::*;
 
 use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey, 
-            groth16_vk_from_byteblob, groth16_proof_from_byteblob, groth16_primary_input_from_byteblob};
+            groth16_vk_from_byteblob, groth16_proof_from_byteblob, groth16_primary_input_from_byteblob, std_size_t_process};
+
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
 
@@ -51,15 +52,26 @@ pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVe
     }
 }
 
-pub fn verify_groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<bool, SynthesisError> {
+pub fn verify_groth16_proof_from_byteblob<E: Engine>(byteblob: &[u8]) -> Result<bool, SynthesisError> {
 
-    let groth16_vk = groth16_vk_from_byteblob (&proof_bytes).unwrap();
-    let groth16_proof = groth16_proof_from_byteblob::<Bls12> (&proof_bytes).unwrap();
-    let groth16_primary_input = groth16_primary_input_from_byteblob::<Bls12> (&proof_bytes).unwrap();
+    let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
+    let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
+    let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;
+    let fr_byteblob_size = 32;
+    let fp_byteblob_size = 48;
+    let gt_byteblob_size = 12 * fp_byteblob_size;
 
-    let result = verify_groth16_proof::<Bls12>(&groth16_vk, &groth16_proof, &groth16_primary_input).unwrap();
+    let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]).unwrap();
 
-    Ok(result)
+    let primary_input_byteblob_size = fr_byteblob_size * std_size_t_process(&byteblob[proof_byteblob_size..proof_byteblob_size+4]).unwrap();
+
+    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[proof_byteblob_size + 4..proof_byteblob_size + 4 + primary_input_byteblob_size]).unwrap();
+
+    let de_vk = groth16_vk_from_byteblob(&byteblob[proof_byteblob_size + 4 + primary_input_byteblob_size..]).unwrap();
+
+    let verified = verify_groth16_proof::<Bls12>(&de_vk, &de_prf, &de_pi).unwrap();
+
+    Ok(verified)
 }
 
 /// Verify a single Proof.
