@@ -54,6 +54,7 @@ pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVe
 
 pub fn verify_groth16_proof_from_byteblob<E: Engine>(byteblob: &[u8]) -> Result<bool, SynthesisError> {
 
+    let std_size_byteblob_size = 4;
     let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
     let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
     let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;
@@ -63,11 +64,11 @@ pub fn verify_groth16_proof_from_byteblob<E: Engine>(byteblob: &[u8]) -> Result<
 
     let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]).unwrap();
 
-    let primary_input_byteblob_size = fr_byteblob_size * std_size_t_process(&byteblob[proof_byteblob_size..proof_byteblob_size+4]).unwrap();
+    let primary_input_byteblob_size = fr_byteblob_size * std_size_t_process(&byteblob[proof_byteblob_size..proof_byteblob_size+std_size_byteblob_size]).unwrap();
 
-    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[proof_byteblob_size + 4..proof_byteblob_size + 4 + primary_input_byteblob_size]).unwrap();
+    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[proof_byteblob_size + std_size_byteblob_size..proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size]).unwrap();
 
-    let de_vk = groth16_vk_from_byteblob(&byteblob[proof_byteblob_size + 4 + primary_input_byteblob_size..]).unwrap();
+    let de_vk = groth16_vk_from_byteblob(&byteblob[proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size..]).unwrap();
 
     let verified = verify_groth16_proof::<Bls12>(&de_vk, &de_prf, &de_pi).unwrap();
 

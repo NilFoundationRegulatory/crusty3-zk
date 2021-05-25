@@ -145,12 +145,22 @@ pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<
     let std_size_byteblob_size = 4;
 
     let g1_byteblob_size = <E::G1Affine as CurveAffine>::Compressed::size();
-    let accumulation_vector_size = (proof_bytes.len() - std_size_byteblob_size)/g1_byteblob_size;
+    // let accumulation_vector_size = (proof_bytes.len() - std_size_byteblob_size)/g1_byteblob_size;
+
     let mut accumulation_vector = Vec::new();
 
-    for i in 0..accumulation_vector_size {
-        accumulation_vector.push(g1_affine_process::<E>(&proof_bytes[std_size_byteblob_size + i*g1_byteblob_size..std_size_byteblob_size + (i+1)*g1_byteblob_size]).unwrap());
+    accumulation_vector.push(g1_affine_process::<E>(&proof_bytes[..g1_byteblob_size]).unwrap());
+
+    let indices_count = std_size_t_process(&proof_bytes[g1_byteblob_size..g1_byteblob_size + std_size_byteblob_size]).unwrap();
+
+    // skip indices:
+    let accumulation_vector_g1s_byteblob_begin = g1_byteblob_size + (1 + indices_count) * std_size_byteblob_size;
+
+    for i in 0..indices_count {
+        accumulation_vector.push(g1_affine_process::<E>(&proof_bytes[accumulation_vector_g1s_byteblob_begin + i*g1_byteblob_size..accumulation_vector_g1s_byteblob_begin + (i+1)*g1_byteblob_size]).unwrap());
     }
+
+    // there is also domain size written in byteblob, but we don't need it
 
     Ok(accumulation_vector)
 }
