@@ -5,17 +5,17 @@ use rand::thread_rng;
 use std::time::{Duration, Instant};
 
 // Bring in some tools for using pairing-friendly curves
-use bellperson::bls::Engine;
+use crusty3_zk::bls::Engine;
 use ff::{Field, ScalarEngine};
 
 // We're going to use the BLS12-381 pairing-friendly elliptic curve.
-use bellperson::bls::Bls12;
+use crusty3_zk::bls::Bls12;
 
 // We'll use these interfaces to construct our circuit.
-use bellperson::{Circuit, ConstraintSystem, SynthesisError};
+use crusty3_zk::{Circuit, ConstraintSystem, SynthesisError};
 
 // We're going to use the Groth16 proving system.
-use bellperson::groth16::{
+use crusty3_zk::groth16::{
     create_random_proof, create_random_proof_batch, generate_random_parameters,
     prepare_verifying_key, verify_proof, verify_proofs_batch, Proof,
 };

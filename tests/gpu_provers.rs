@@ -1,4 +1,4 @@
-use bellperson::{bls::Engine, Circuit, ConstraintSystem, SynthesisError};
+use crusty3_zk::{bls::Engine, Circuit, ConstraintSystem, SynthesisError};
 use ff::{Field, PrimeField};
 
 #[derive(Clone)]
@@ -40,8 +40,8 @@ impl<E: Engine> Circuit<E> for DummyDemo {
 #[cfg(feature = "gpu")]
 #[test]
 pub fn test_parallel_prover() {
-    use bellperson::bls::Bls12;
-    use bellperson::groth16::{
+    use crusty3_zk::bls::Bls12;
+    use crusty3_zk::groth16::{
         create_random_proof, create_random_proof_in_priority, generate_random_parameters,
         prepare_verifying_key, verify_proof,
     };

@@ -2,9 +2,6 @@
 //!
 //! [Groth16]: https://eprint.iacr.org/2016/260
 
-#[cfg(test)]
-mod tests;
-
 mod ext;
 mod generator;
 mod mapped_params;
@@ -13,6 +10,8 @@ mod proof;
 mod prover;
 mod verifier;
 mod verifying_key;
+
+mod marshalling;
 
 mod multiscalar;
 
@@ -24,3 +23,5 @@ pub use self::proof::*;
 pub use self::prover::*;
 pub use self::verifier::*;
 pub use self::verifying_key::*;
+
+pub use self::marshalling::*;

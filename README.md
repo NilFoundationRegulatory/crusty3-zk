@@ -1,10 +1,8 @@
-# bellperson [![Crates.io](https://img.shields.io/crates/v/bellperson.svg)](https://crates.io/crates/bellperson)
+# Crusty3-zk
 
 > This is a fork of the great [bellman](https://github.com/zkcrypto/bellman) library.
 
-`bellman` is a crate for building zk-SNARK circuits. It provides circuit traits
-and primitive structures, as well as basic gadget implementations such as
-booleans and number abstractions.
+`crusty3-zk` is a crate for verifying zk-SNARK proofs . At the moment it provides verifier for Jens Groth's Groth16 proof system.
 
 ## Backend
 

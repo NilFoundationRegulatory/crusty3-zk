@@ -4,6 +4,7 @@ use groupy::{CurveAffine, EncodedPoint};
 
 use crate::bls::Engine;
 
+
 #[derive(Clone, Debug)]
 pub struct Proof<E: Engine> {
     pub a: E::G1Affine,
@@ -195,6 +196,52 @@ mod test_with_bls12_381 {
     #[test]
     fn test_size() {
         assert_eq!(Proof::<Bls12>::size(), 192);
+    }
+
+    #[test]
+    fn test_print() {
+        println!("Test runs!");
+
+        // let g1_one = paired::bls12_381::G1Affine::one();
+        // let a = paired::bls12_381::G1Affine::one();
+        // let a = a.mul(g1_one);
+
+
+        // println!("Print a before proof creation: {}", a);
+        // println!("Print b before proof creation: {}", b);
+        // println!("Print c before proof creation: {}", c);
+
+        let prf = Proof::<Bls12> {a: paired::bls12_381::G1Affine::one(),
+            b: paired::bls12_381::G2Affine::one(),
+            c: paired::bls12_381::G1Affine::one()};
+
+        // let rng = &mut thread_rng();
+
+        // let random_proof = Proof {
+        //         a: paired::bls12_381::G1Projective::random(&mut rng).into_affine(),
+        //         b: paired::bls12_381::G2Projective::random(&mut rng).into_affine(),
+        //         c: paired::bls12_381::G1Projective::random(&mut rng).into_affine(),
+        //     };
+
+        println!("Print a after proof creation: {}", prf.a);
+        println!("Print b after proof creation: {}", prf.b);
+        println!("Print c after proof creation: {}", prf.c);
+        
+        let mut v = vec![];
+        prf.write(&mut v).unwrap();
+
+        // let mut v_copy = vec![v];
+
+        println!("Vector size: {}", v.len());
+        println!("{:02x?}", v);
+
+        let de_prf = Proof::<Bls12>::read(&v[..]).unwrap();
+
+        println!("Print a after proof decoding: {}", de_prf.a);
+        println!("Print b after proof decoding: {}", de_prf.b);
+        println!("Print c after proof decoding: {}", de_prf.c);
+
+        assert_eq!(1, 1);
     }
 
     #[test]

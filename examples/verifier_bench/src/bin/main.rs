@@ -9,11 +9,11 @@
 use std::sync::Arc;
 use std::time::Instant;
 
-use bellperson::groth16::{
+use crusty3_zk::groth16::{
     create_random_proof_batch, generate_random_parameters, prepare_verifying_key,
-    verify_proofs_batch, Parameters, Proof, VerifyingKey,
+    verify_proofs_batch, Parameters, Proof, VerifyingKey, verify_groth16_proof_from_byteblob
 };
-use bellperson::{
+use crusty3_zk::{
     bls::{Bls12, Engine, Fr},
     Circuit, ConstraintSystem, SynthesisError,
 };
@@ -153,76 +153,92 @@ struct Opts {
     dummy: bool,
 }
 
+// fn main() {
+//     let rng = &mut thread_rng();
+//     pretty_env_logger::init_timed();
+
+//     let opts = Opts::from_args();
+//     if opts.gpu {
+//         std::env::set_var("BELLMAN_VERIFIER", "gpu");
+//     } else {
+//         std::env::set_var("BELLMAN_NO_GPU", "1");
+//     }
+
+//     let circuit = DummyDemo {
+//         public: opts.public,
+//         private: opts.private,
+//     };
+//     let circuits = vec![circuit.clone(); opts.proofs];
+
+//     let params = if opts.dummy {
+//         dummy_params::<Bls12, _>(opts.public, opts.private, rng)
+//     } else {
+//         println!("Generating params... (You can skip this by passing `--dummy` flag)");
+//         generate_random_parameters(circuit.clone(), rng).unwrap()
+//     };
+//     let pvk = prepare_verifying_key(&params.vk);
+
+//     if opts.prove {
+//         println!("Proving...");
+
+//         for _ in 0..opts.samples {
+//             let (_, took) =
+//                 timer!(create_random_proof_batch(circuits.clone(), &params, rng).unwrap());
+//             println!("Proof generation finished in {}ms", took);
+//         }
+//     }
+
+//     if opts.verify {
+//         println!("Verifying...");
+
+//         let (inputs, proofs) = if opts.dummy {
+//             (
+//                 dummy_inputs::<Bls12, _>(opts.public, rng),
+//                 dummy_proofs::<Bls12, _>(opts.proofs, rng),
+//             )
+//         } else {
+//             let mut inputs = Vec::new();
+//             let mut num = Fr::one();
+//             num.double();
+//             for _ in 0..opts.public {
+//                 inputs.push(num);
+//                 num.square();
+//             }
+//             println!("(Generating valid proofs...)");
+//             let proofs = create_random_proof_batch(circuits.clone(), &params, rng).unwrap();
+//             (inputs, proofs)
+//         };
+
+//         for _ in 0..opts.samples {
+//             let pref = proofs.iter().collect::<Vec<&_>>();
+//             println!(
+//                 "{} proofs, each having {} public inputs...",
+//                 opts.proofs, opts.public
+//             );
+//             let (valid, took) = timer!(verify_proofs_batch(
+//                 &pvk,
+//                 rng,
+//                 &pref[..],
+//                 &vec![inputs.clone(); opts.proofs]
+//             )
+//             .unwrap());
+//             println!("Verification finished in {}ms (Valid: {})", took, valid);
+//         }
+//     }
+// }
+
 fn main() {
-    let rng = &mut thread_rng();
-    pretty_env_logger::init_timed();
+    
+    use crusty3_zk::bls::{Bls12, Fr, Fq, FqRepr};
+    use crusty3_zk::groth16::{verify_groth16_proof_from_byteblob};
+    use std::fs::read;
+    use groupy::{CurveAffine, EncodedPoint};
 
-    let opts = Opts::from_args();
-    if opts.gpu {
-        std::env::set_var("BELLMAN_VERIFIER", "gpu");
-    } else {
-        std::env::set_var("BELLMAN_NO_GPU", "1");
-    }
+    let mut byteblob = std::fs::read("data.bin").unwrap();
 
-    let circuit = DummyDemo {
-        public: opts.public,
-        private: opts.private,
-    };
-    let circuits = vec![circuit.clone(); opts.proofs];
+    println!("Verification started");
 
-    let params = if opts.dummy {
-        dummy_params::<Bls12, _>(opts.public, opts.private, rng)
-    } else {
-        println!("Generating params... (You can skip this by passing `--dummy` flag)");
-        generate_random_parameters(circuit.clone(), rng).unwrap()
-    };
-    let pvk = prepare_verifying_key(&params.vk);
+    let verified = verify_groth16_proof_from_byteblob::<Bls12>(&byteblob[..]).unwrap();
 
-    if opts.prove {
-        println!("Proving...");
-
-        for _ in 0..opts.samples {
-            let (_, took) =
-                timer!(create_random_proof_batch(circuits.clone(), &params, rng).unwrap());
-            println!("Proof generation finished in {}ms", took);
-        }
-    }
-
-    if opts.verify {
-        println!("Verifying...");
-
-        let (inputs, proofs) = if opts.dummy {
-            (
-                dummy_inputs::<Bls12, _>(opts.public, rng),
-                dummy_proofs::<Bls12, _>(opts.proofs, rng),
-            )
-        } else {
-            let mut inputs = Vec::new();
-            let mut num = Fr::one();
-            num.double();
-            for _ in 0..opts.public {
-                inputs.push(num);
-                num.square();
-            }
-            println!("(Generating valid proofs...)");
-            let proofs = create_random_proof_batch(circuits.clone(), &params, rng).unwrap();
-            (inputs, proofs)
-        };
-
-        for _ in 0..opts.samples {
-            let pref = proofs.iter().collect::<Vec<&_>>();
-            println!(
-                "{} proofs, each having {} public inputs...",
-                opts.proofs, opts.public
-            );
-            let (valid, took) = timer!(verify_proofs_batch(
-                &pvk,
-                rng,
-                &pref[..],
-                &vec![inputs.clone(); opts.proofs]
-            )
-            .unwrap());
-            println!("Verification finished in {}ms (Valid: {})", took, valid);
-        }
-    }
+    println!("Verified: {}", verified);
 }
