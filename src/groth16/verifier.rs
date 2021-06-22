@@ -62,17 +62,47 @@ pub fn verify_groth16_proof_from_byteblob<E: Engine>(byteblob: &[u8]) -> Result<
     let fp_byteblob_size = 48;
     let gt_byteblob_size = 12 * fp_byteblob_size;
 
-    let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]).unwrap();
+    if (byteblob.len() < proof_byteblob_size){
+        return Ok(false)
+    }
 
-    let primary_input_byteblob_size = fr_byteblob_size * std_size_t_process(&byteblob[proof_byteblob_size..proof_byteblob_size+std_size_byteblob_size]).unwrap();
+    let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]);
+    let mut de_prf = match de_prf {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
 
-    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[proof_byteblob_size + std_size_byteblob_size..proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size]).unwrap();
+    if (byteblob.len() < proof_byteblob_size + std_size_byteblob_size){
+        return Ok(false)
+    }
 
-    let de_vk = groth16_vk_from_byteblob(&byteblob[proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size..]).unwrap();
+    let mut primary_input_byteblob_size = match std_size_t_process(&byteblob[proof_byteblob_size..proof_byteblob_size+std_size_byteblob_size]) {
+        Ok(result) => fr_byteblob_size * result,
+        Err(e) => return Ok(false),
+    };
 
-    let verified = verify_groth16_proof::<Bls12>(&de_vk, &de_prf, &de_pi).unwrap();
+    if (byteblob.len() < proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size){
+        return Ok(false)
+    }
 
-    Ok(verified)
+    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[proof_byteblob_size + std_size_byteblob_size..proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size]);
+    let mut de_pi = match de_pi {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let de_vk = groth16_vk_from_byteblob(&byteblob[proof_byteblob_size + std_size_byteblob_size + primary_input_byteblob_size..]);
+    let mut de_vk = match de_vk {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let verified = verify_groth16_proof::<Bls12>(&de_vk, &de_prf, &de_pi);
+    
+    match verified {
+        Ok(result) => Ok(result),
+        Err(e) => return Ok(false),
+    }
 }
 
 /// Verify a single Proof.
@@ -84,7 +114,7 @@ pub fn verify_groth16_proof<'a, E: Engine>(
 
     let pvk = groth16vk_to_pvk(groth16_vk);
 
-    let result = verify_proof(&pvk, &proof, &primary_input).unwrap();
+    let result = verify_proof(&pvk, &proof, &primary_input)?;
 
     Ok(result)
 }
