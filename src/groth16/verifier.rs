@@ -54,7 +54,7 @@ pub fn groth16vk_to_pvk<E: Engine>(vk: &GROTH16VerificationKey<E>) -> PreparedVe
 
 pub fn verify_groth16_proof_from_byteblob<E: Engine>(byteblob: &[u8]) -> Result<bool, SynthesisError> {
 
-    let std_size_byteblob_size = 4;
+    let std_size_byteblob_size = 8;
     let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
     let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
     let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;

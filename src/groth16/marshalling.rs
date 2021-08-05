@@ -15,40 +15,42 @@ use crate::SynthesisError;
 
 pub fn std_size_t_process(proof_bytes: &[u8]) -> Result<usize, Box<dyn error::Error>>{
 
-    let std_size_byteblob_size = 4;
+    let std_size_byteblob_size = 8;
 
-    let fr_byteblob : Vec<u8> = proof_bytes[..std_size_byteblob_size].to_vec();
+    let std_size_t_byteblob : Vec<u8> = proof_bytes[..std_size_byteblob_size].to_vec();
 
     let mut dst = [0; 1];
-    LittleEndian::read_u32_into(&fr_byteblob, &mut dst);
+    BigEndian::read_u64_into(&std_size_t_byteblob, &mut dst);
 
     let res = dst[0] as usize;
     Ok(res)
 }
 
-pub fn fr_process<E: Engine>(proof_bytes: &[u8]) -> Result<Fr, Box<dyn error::Error>>{
+pub fn fr_process<E: Engine>(fr_bytes: &[u8]) -> Result<Fr, Box<dyn error::Error>>{
 
     let fr_byteblob_size = 32;
 
-    let fr_byteblob : Vec<u8> = proof_bytes[..fr_byteblob_size].to_vec();
+    let fr_byteblob : Vec<u8> = fr_bytes[..fr_byteblob_size].to_vec();
 
     let mut dst = [0; 4];
-    LittleEndian::read_u64_into(&fr_byteblob, &mut dst);
+    BigEndian::read_u64_into(&fr_byteblob, &mut dst);
 
+    dst.reverse();
     let fr_element = Fr::from_repr(FrRepr(dst))?;
 
     Ok(fr_element)
 }
 
-pub fn fp_process<E: Engine>(proof_bytes: &[u8]) -> Result<Fq, Box<dyn error::Error>>{
+pub fn fp_process<E: Engine>(fp_bytes: &[u8]) -> Result<Fq, Box<dyn error::Error>>{
 
     let fp_byteblob_size = 48;
 
-    let fp_byteblob : Vec<u8> = proof_bytes[..fp_byteblob_size].to_vec();
+    let fp_byteblob : Vec<u8> = fp_bytes[..fp_byteblob_size].to_vec();
 
     let mut dst = [0; 6];
-    LittleEndian::read_u64_into(&fp_byteblob, &mut dst);
+    BigEndian::read_u64_into(&fp_byteblob, &mut dst);
 
+    dst.reverse();
     let fq_element = Fq::from_repr(FqRepr(dst))?;
 
     Ok(fq_element)
@@ -157,7 +159,7 @@ impl fmt::Display for MarshallingError {
 impl error::Error for MarshallingError {}
 
 pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<E::G1Affine>, Box<dyn error::Error>>{
-    let std_size_byteblob_size = 4;
+    let std_size_byteblob_size = 8;
 
     let g1_byteblob_size = <E::G1Affine as CurveAffine>::Compressed::size();
     // let accumulation_vector_size = (proof_bytes.len() - std_size_byteblob_size)/g1_byteblob_size;
@@ -177,8 +179,11 @@ pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<
 
     let indices_count = std_size_t_process(&proof_bytes[g1_byteblob_size..g1_byteblob_size + std_size_byteblob_size])?;
 
+    let values_count = std_size_t_process(&proof_bytes[g1_byteblob_size + (1 + indices_count) * std_size_byteblob_size..
+                                                       g1_byteblob_size + (2 + indices_count) * std_size_byteblob_size])?;
+
     // skip indices:
-    let accumulation_vector_g1s_byteblob_begin = g1_byteblob_size + (1 + indices_count) * std_size_byteblob_size;
+    let accumulation_vector_g1s_byteblob_begin = g1_byteblob_size + (2 + indices_count) * std_size_byteblob_size;
 
     if (proof_bytes.get(accumulation_vector_g1s_byteblob_begin + indices_count*g1_byteblob_size) == None){
         {Err(io::Error::new(
@@ -187,7 +192,7 @@ pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<
                 ))}?;
     };
 
-    for i in 0..indices_count {
+    for i in 0..values_count {
         let i_element = g1_affine_process::<E>(&proof_bytes[accumulation_vector_g1s_byteblob_begin + i*g1_byteblob_size..accumulation_vector_g1s_byteblob_begin + (i+1)*g1_byteblob_size])?;
 
         accumulation_vector.push(i_element);
@@ -226,7 +231,7 @@ pub fn groth16_vk_from_byteblob(proof_bytes: &[u8]) -> Result<GROTH16Verificatio
 }
 
 pub fn groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<Proof<E>, Box<dyn error::Error>>{
-    
+
     let g1_byteblob_size = <E::G1Affine as CurveAffine>::Compressed::size();
     let g2_byteblob_size = <E::G2Affine as CurveAffine>::Compressed::size();
 
