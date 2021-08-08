@@ -203,17 +203,24 @@ pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<
     Ok(accumulation_vector)
 }
 
-pub fn groth16_vk_from_byteblob(proof_bytes: &[u8]) -> Result<GROTH16VerificationKey::<Bls12>, Box<dyn error::Error>>{
+pub fn groth16_vk_from_byteblob(verification_key_bytes: &[u8]) -> Result<GROTH16VerificationKey::<Bls12>, Box<dyn error::Error>>{
     let fp_byteblob_size = 48;
     let fqk_byteblob_size = 2*3*2*fp_byteblob_size;
     let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
     let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
 
-    let mut alpha_g1_beta_g2_processed = fp12_2over3over2_process::<Bls12>(&proof_bytes[..fqk_byteblob_size])?;
-    let mut gamma_g2_processed = g2_affine_process::<Bls12>(&proof_bytes[fqk_byteblob_size..fqk_byteblob_size+g2_byteblob_size])?;
-    let mut delta_g2_processed = g2_affine_process::<Bls12>(&proof_bytes[fqk_byteblob_size+g2_byteblob_size..fqk_byteblob_size+2*g2_byteblob_size])?;
+    if (verification_key_bytes.get(fqk_byteblob_size+2*g2_byteblob_size) == None){
+        {Err(io::Error::new(
+                    io::ErrorKind::InvalidData,
+                    "point at infinity",
+                ))}?;
+    };
 
-    let mut ic_processed = accumulation_vector_process::<Bls12>(&proof_bytes[fqk_byteblob_size+2*g2_byteblob_size..])?;
+    let mut alpha_g1_beta_g2_processed = fp12_2over3over2_process::<Bls12>(&verification_key_bytes[..fqk_byteblob_size])?;
+    let mut gamma_g2_processed = g2_affine_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size..fqk_byteblob_size+g2_byteblob_size])?;
+    let mut delta_g2_processed = g2_affine_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size+g2_byteblob_size..fqk_byteblob_size+2*g2_byteblob_size])?;
+
+    let mut ic_processed = accumulation_vector_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size+2*g2_byteblob_size..])?;
 
     let mut alpha_g1_beta_g2_processed = alpha_g1_beta_g2_processed as <paired::bls12_381::Bls12 as Engine>::Fqk;
     let mut gamma_g2_processed = gamma_g2_processed as <paired::bls12_381::Bls12 as Engine>::G2Affine;
@@ -236,7 +243,7 @@ pub fn groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<Proo
     let g2_byteblob_size = <E::G2Affine as CurveAffine>::Compressed::size();
 
     let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;
-
+    
     let de_prf = Proof::<E>::read(&proof_bytes[..proof_byteblob_size])?;
 
     Ok(de_prf)
