@@ -242,3 +242,25 @@ pub struct GROTH16VerificationKey<E: Engine> {
     /// Copy of IC from `VerifiyingKey`.
     pub(crate) ic: Vec<E::G1Affine>
 }
+
+pub struct GROTH16ExtendedVerificationKey<E: Engine> {
+    /// Pairing result of alpha*beta
+    pub(crate) alpha_g1_beta_g2: E::Fqk,
+
+    pub(crate) gamma_g2: E::G2Affine,
+    pub(crate) delta_g2: E::G2Affine,
+    pub(crate) delta_g1: E::G1Affine,
+    pub(crate) gamma_g1: E::G1Affine,
+    /// Copy of IC from `VerifiyingKey`.
+    pub(crate) ic: Vec<E::G1Affine>
+}
+
+pub struct ElGamalVerifiablePublicKey<E: Engine> {
+    pub(crate) delta_g1: E::G1Affine,
+    pub(crate) delta_sum_s_g1: E::G1Affine,
+    pub(crate) gamma_inverse_sum_s_g1: E::G1Affine,
+
+    pub(crate) delta_s_g1: Vec<E::G1Affine>,
+    pub(crate) t_g1: Vec<E::G1Affine>,
+    pub(crate) t_g2: Vec<E::G2Affine>,
+}

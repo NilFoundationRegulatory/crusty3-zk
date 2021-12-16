@@ -9,12 +9,15 @@ use std::fmt;
 
 use byteorder::{ByteOrder, BigEndian, LittleEndian};
 
-use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey};
+use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey,
+            GROTH16ExtendedVerificationKey, ElGamalVerifiablePublicKey};
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
 
 pub fn std_size_t_process(proof_bytes: &[u8]) -> Result<usize, Box<dyn error::Error>>{
-
+    // TODO:
+    //  use std::mem;
+    //  mem::size_of::<usize>()
     let std_size_byteblob_size = 8;
 
     let std_size_t_byteblob : Vec<u8> = proof_bytes[..std_size_byteblob_size].to_vec();
@@ -203,6 +206,51 @@ pub fn accumulation_vector_process<E: Engine>(proof_bytes: &[u8]) -> Result<Vec<
     Ok(accumulation_vector)
 }
 
+pub fn accumulation_vector_process_size_return<E: Engine>(proof_bytes: &[u8]) -> Result<(Vec<E::G1Affine>, usize), Box<dyn error::Error>>{
+    let std_size_byteblob_size = 8;
+
+    let g1_byteblob_size = <E::G1Affine as CurveAffine>::Compressed::size();
+    // let accumulation_vector_size = (proof_bytes.len() - std_size_byteblob_size)/g1_byteblob_size;
+
+    let mut accumulation_vector = Vec::new();
+
+    if (proof_bytes.get(g1_byteblob_size + std_size_byteblob_size) == None){
+        {Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "point at infinity",
+        ))}?;
+    };
+
+    let first = g1_affine_process::<E>(&proof_bytes[..g1_byteblob_size])?;
+
+    accumulation_vector.push(first);
+
+    let indices_count = std_size_t_process(&proof_bytes[g1_byteblob_size..g1_byteblob_size + std_size_byteblob_size])?;
+
+    let values_count = std_size_t_process(&proof_bytes[g1_byteblob_size + (1 + indices_count) * std_size_byteblob_size..
+        g1_byteblob_size + (2 + indices_count) * std_size_byteblob_size])?;
+
+    // skip indices:
+    let accumulation_vector_g1s_byteblob_begin = g1_byteblob_size + (2 + indices_count) * std_size_byteblob_size;
+
+    if (proof_bytes.get(accumulation_vector_g1s_byteblob_begin + indices_count*g1_byteblob_size) == None){
+        {Err(io::Error::new(
+            io::ErrorKind::InvalidData,
+            "point at infinity",
+        ))}?;
+    };
+
+    for i in 0..values_count {
+        let i_element = g1_affine_process::<E>(&proof_bytes[accumulation_vector_g1s_byteblob_begin + i*g1_byteblob_size..accumulation_vector_g1s_byteblob_begin + (i+1)*g1_byteblob_size])?;
+
+        accumulation_vector.push(i_element);
+    }
+
+    // there is also domain size written in byteblob, but we don't need it
+
+    Ok((accumulation_vector, accumulation_vector_g1s_byteblob_begin + values_count * g1_byteblob_size + std_size_byteblob_size))
+}
+
 pub fn groth16_vk_from_byteblob(verification_key_bytes: &[u8]) -> Result<GROTH16VerificationKey::<Bls12>, Box<dyn error::Error>>{
     let fp_byteblob_size = 48;
     let fqk_byteblob_size = 2*3*2*fp_byteblob_size;
@@ -235,6 +283,173 @@ pub fn groth16_vk_from_byteblob(verification_key_bytes: &[u8]) -> Result<GROTH16
         };
 
     Ok(groth16_key)
+}
+
+pub fn g1_array_from_byteblob(in_bytes: &[u8]) -> Result<(Vec<<paired::bls12_381::Bls12 as Engine>::G1Affine>, usize), Box<dyn error::Error>> {
+    // TODO:
+    //  use std::mem;
+    //  mem::size_of::<usize>()
+    let std_size_byteblob_size = 8;
+    let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
+
+    if (in_bytes.get(std_size_byteblob_size) == None) {
+        {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "point at infinity",
+            ))
+        }?;
+    };
+
+    let values_count = std_size_t_process(&in_bytes)?;
+
+    if (in_bytes.get(std_size_byteblob_size + values_count * g1_byteblob_size) == None) {
+        {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "point at infinity",
+            ))
+        }?;
+    };
+
+    let mut processed_vector = Vec::new();
+    for i in 0..values_count {
+        let i_element = g1_affine_process::<Bls12>(&in_bytes[std_size_byteblob_size + i * g1_byteblob_size..std_size_byteblob_size + (i + 1) * g1_byteblob_size])?;
+        processed_vector.push(i_element);
+    }
+
+    Ok((processed_vector, std_size_byteblob_size + values_count * g1_byteblob_size))
+}
+
+pub fn g2_array_from_byteblob(in_bytes: &[u8]) -> Result<(Vec<<paired::bls12_381::Bls12 as Engine>::G2Affine>, usize), Box<dyn error::Error>> {
+    // TODO:
+    //  use std::mem;
+    //  mem::size_of::<usize>()
+    let std_size_byteblob_size = 8;
+    let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
+
+    if (in_bytes.get(std_size_byteblob_size) == None) {
+        {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "point at infinity",
+            ))
+        }?;
+    };
+
+    let values_count = std_size_t_process(&in_bytes)?;
+
+    if (in_bytes.get(std_size_byteblob_size + values_count * g2_byteblob_size) == None) {
+        {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "point at infinity",
+            ))
+        }?;
+    };
+
+    let mut processed_vector = Vec::new();
+    for i in 0..values_count {
+        let i_element = g2_affine_process::<Bls12>(&in_bytes[std_size_byteblob_size + i * g2_byteblob_size..std_size_byteblob_size + (i + 1) * g2_byteblob_size])?;
+        processed_vector.push(i_element);
+    }
+
+    Ok((processed_vector, std_size_byteblob_size + values_count * g2_byteblob_size))
+}
+
+pub fn groth16_ext_vk_from_byteblob(verification_key_bytes: &[u8]) -> Result<(GROTH16ExtendedVerificationKey::<Bls12>, usize), Box<dyn error::Error>> {
+    let fp_byteblob_size = 48;
+    let fqk_byteblob_size = 2 * 3 * 2 * fp_byteblob_size;
+    let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
+    let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
+
+    if (verification_key_bytes.get(fqk_byteblob_size + 2 * g2_byteblob_size + 2 * g1_byteblob_size) == None) {
+        {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "point at infinity",
+            ))
+        }?;
+    };
+
+    let mut alpha_g1_beta_g2_processed = fp12_2over3over2_process::<Bls12>(&verification_key_bytes[..fqk_byteblob_size])?;
+    let mut gamma_g2_processed = g2_affine_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size..fqk_byteblob_size + g2_byteblob_size])?;
+    let mut delta_g2_processed = g2_affine_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size + g2_byteblob_size..fqk_byteblob_size + 2 * g2_byteblob_size])?;
+    let mut delta_g1_processed = g1_affine_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size + 2 * g2_byteblob_size..fqk_byteblob_size + 2 * g2_byteblob_size + g1_byteblob_size])?;
+    let mut gamma_g1_processed = g1_affine_process::<Bls12>(&verification_key_bytes[fqk_byteblob_size + 2 * g2_byteblob_size + g1_byteblob_size..fqk_byteblob_size + 2 * g2_byteblob_size + 2 * g1_byteblob_size])?;
+
+    let mut ic_processed = accumulation_vector_process_size_return::<Bls12>(&verification_key_bytes[fqk_byteblob_size + 2 * g2_byteblob_size + 2 * g1_byteblob_size..])?;
+
+    let mut alpha_g1_beta_g2_processed = alpha_g1_beta_g2_processed as <paired::bls12_381::Bls12 as Engine>::Fqk;
+    let mut gamma_g2_processed = gamma_g2_processed as <paired::bls12_381::Bls12 as Engine>::G2Affine;
+    let mut delta_g2_processed = delta_g2_processed as <paired::bls12_381::Bls12 as Engine>::G2Affine;
+    let mut delta_g1_processed = delta_g1_processed as <paired::bls12_381::Bls12 as Engine>::G1Affine;
+    let mut gamma_g1_processed = gamma_g1_processed as <paired::bls12_381::Bls12 as Engine>::G1Affine;
+    let mut ic_processed_vector = ic_processed.0 as Vec<<paired::bls12_381::Bls12 as Engine>::G1Affine>;
+
+    let groth16_key = GROTH16ExtendedVerificationKey::<Bls12> {
+        alpha_g1_beta_g2: alpha_g1_beta_g2_processed,
+        gamma_g2: gamma_g2_processed,
+        delta_g2: delta_g2_processed,
+        delta_g1: delta_g1_processed,
+        gamma_g1: gamma_g1_processed,
+        ic: ic_processed_vector,
+    };
+
+    let key_bytes = fqk_byteblob_size + 2 * g2_byteblob_size + 2 * g1_byteblob_size + ic_processed.1;
+
+    Ok((groth16_key, key_bytes))
+}
+
+pub fn elgamal_verifiable_public_key_from_byteblob(public_key_bytes: &[u8]) -> Result<(ElGamalVerifiablePublicKey::<Bls12>, usize), Box<dyn error::Error>> {
+    let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
+    let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
+    // TODO:
+    //  use std::mem;
+    //  mem::size_of::<usize>()
+    let std_size_byteblob_size = 8;
+
+    if (public_key_bytes.get(3 * g1_byteblob_size) == None) {
+        {
+            Err(io::Error::new(
+                io::ErrorKind::InvalidData,
+                "point at infinity",
+            ))
+        }?;
+    };
+
+    let mut delta_g1_processed = g1_affine_process::<Bls12>(&public_key_bytes[..g1_byteblob_size])?;
+    let mut delta_sum_s_g1_processed = g1_affine_process::<Bls12>(&public_key_bytes[g1_byteblob_size..2 * g1_byteblob_size])?;
+    let mut gamma_inverse_sum_s_g1_processed = g1_affine_process::<Bls12>(&public_key_bytes[2 * g1_byteblob_size..3 * g1_byteblob_size])?;
+
+    let delta_s_g1_begin = 3 * g1_byteblob_size;
+    let delta_s_g1_processed = g1_array_from_byteblob(&public_key_bytes[delta_s_g1_begin..])?;
+
+    let t_g1_begin = delta_s_g1_begin + delta_s_g1_processed.1;
+    let t_g1_processed = g1_array_from_byteblob(&public_key_bytes[t_g1_begin..])?;
+
+    let t_g2_begin = t_g1_begin + t_g1_processed.1;
+    let t_g2_processed = g2_array_from_byteblob(&public_key_bytes[t_g2_begin..])?;
+
+    let mut delta_g1_processed = delta_g1_processed as <paired::bls12_381::Bls12 as Engine>::G1Affine;
+    let mut delta_sum_s_g1_processed = delta_sum_s_g1_processed as <paired::bls12_381::Bls12 as Engine>::G1Affine;
+    let mut gamma_inverse_sum_s_g1_processed = gamma_inverse_sum_s_g1_processed as <paired::bls12_381::Bls12 as Engine>::G1Affine;
+    let mut delta_s_g1_processed_vector = delta_s_g1_processed.0 as Vec<<paired::bls12_381::Bls12 as Engine>::G1Affine>;
+    let mut t_g1_processed_vector = t_g1_processed.0 as Vec<<paired::bls12_381::Bls12 as Engine>::G1Affine>;
+    let mut t_g2_processed_vector = t_g2_processed.0 as Vec<<paired::bls12_381::Bls12 as Engine>::G2Affine>;
+
+    let public_key = ElGamalVerifiablePublicKey::<Bls12> {
+        delta_g1: delta_g1_processed,
+        delta_sum_s_g1: delta_sum_s_g1_processed,
+        gamma_inverse_sum_s_g1: gamma_inverse_sum_s_g1_processed,
+        delta_s_g1: delta_s_g1_processed_vector,
+        t_g1: t_g1_processed_vector,
+        t_g2: t_g2_processed_vector,
+    };
+
+    let key_len = 3 * g1_byteblob_size + delta_s_g1_processed.1 + t_g1_processed.1 + t_g2_processed.1;
+
+    Ok((public_key, key_len))
 }
 
 pub fn groth16_proof_from_byteblob<E: Engine>(proof_bytes: &[u8]) -> Result<Proof<E>, Box<dyn error::Error>>{

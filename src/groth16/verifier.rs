@@ -3,8 +3,10 @@ use ff::{Field, PrimeField};
 use groupy::{CurveAffine, CurveProjective, EncodedPoint};
 use rayon::prelude::*;
 
-use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey, 
-            groth16_vk_from_byteblob, groth16_proof_from_byteblob, groth16_primary_input_from_byteblob, std_size_t_process};
+use super::{multiscalar, PreparedVerifyingKey, Proof, VerifyingKey, GROTH16VerificationKey,
+            GROTH16ExtendedVerificationKey, ElGamalVerifiablePublicKey,
+            groth16_vk_from_byteblob, groth16_proof_from_byteblob, groth16_primary_input_from_byteblob, std_size_t_process,
+            g1_array_from_byteblob, groth16_ext_vk_from_byteblob, elgamal_verifiable_public_key_from_byteblob};
 
 use crate::multicore::VERIFIER_POOL as POOL;
 use crate::SynthesisError;
@@ -198,6 +200,133 @@ pub fn verify_proof<'a, E: Engine>(
     let QAP = E::final_exponentiation(&ml_all).unwrap();
 
     Ok(QAP == pvk.alpha_g1_beta_g2)
+}
+
+pub fn verify_encrypted_input_groth16_proof_from_byteblob<E: Engine>(byteblob: &[u8]) -> Result<bool, SynthesisError> {
+    // TODO:
+    //  use std::mem;
+    //  mem::size_of::<usize>()
+    let std_size_byteblob_size = 8;
+    let g1_byteblob_size = <<Bls12 as Engine>::G1Affine as CurveAffine>::Compressed::size();
+    let g2_byteblob_size = <<Bls12 as Engine>::G2Affine as CurveAffine>::Compressed::size();
+    let proof_byteblob_size = g1_byteblob_size + g2_byteblob_size + g1_byteblob_size;
+    let fr_byteblob_size = 32;
+    let fp_byteblob_size = 48;
+    let gt_byteblob_size = 12 * fp_byteblob_size;
+
+    if (byteblob.len() < proof_byteblob_size){
+        return Ok(false)
+    }
+
+    let de_prf = groth16_proof_from_byteblob::<Bls12>(&byteblob[..proof_byteblob_size]);
+    let mut de_prf = match de_prf {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let vk_begin = proof_byteblob_size;
+    let de_vk = groth16_ext_vk_from_byteblob(&byteblob[vk_begin..]);
+    let mut de_vk = match de_vk {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let pubkey_begin = vk_begin + de_vk.1;
+    let de_pubkey = elgamal_verifiable_public_key_from_byteblob(&byteblob[pubkey_begin..]);
+    let mut de_pubkey = match de_pubkey {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let ct_begin = pubkey_begin + de_pubkey.1;
+    let de_ct = g1_array_from_byteblob(&byteblob[ct_begin..]);
+    let mut de_ct = match de_ct {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let pinput_begin = ct_begin + de_ct.1;
+    let mut primary_input_byteblob_size = match std_size_t_process(&byteblob[pinput_begin..pinput_begin + std_size_byteblob_size]) {
+        Ok(result) => fr_byteblob_size * result,
+        Err(e) => return Ok(false),
+    };
+    let de_pi = groth16_primary_input_from_byteblob::<Bls12>(&byteblob[pinput_begin + std_size_byteblob_size..pinput_begin + std_size_byteblob_size + primary_input_byteblob_size]);
+    let mut de_pi = match de_pi {
+        Ok(result) => result,
+        Err(e) => return Ok(false),
+    };
+
+    let verified = verify_encrypted_input_proof::<Bls12>(&de_prf, &de_vk.0, &de_pubkey.0, &de_ct.0, &de_pi);
+
+    match verified {
+        Ok(result) => Ok(result),
+        Err(e) => return Ok(false),
+    }
+}
+
+pub fn verify_encrypted_input_proof<'a, E: Engine>(
+    proof: &Proof<E>,
+    ext_vk: &'a GROTH16ExtendedVerificationKey<E>,
+    pubkey: &'a ElGamalVerifiablePublicKey<E>,
+    ct: &[E::G1Affine],
+    unencrypted_primary_input: &[E::Fr],
+) -> Result<bool, SynthesisError> {
+    let input_size = ext_vk.ic.len() - 1;
+
+    if !(input_size > ct.len() - 2) {
+        return Err(SynthesisError::MalformedVerifyingKey);
+    };
+    if !(unencrypted_primary_input.len() + ct.len() - 2 == input_size) {
+        return Err(SynthesisError::MalformedVerifyingKey);
+    };
+    if !(ct.len() - 2 == pubkey.delta_s_g1.len()) {
+        // TODO: add new error code
+        return Err(SynthesisError::MalformedVerifyingKey);
+    };
+    if !(ct.len() - 2 == pubkey.t_g1.len()) {
+        // TODO: add new error code
+        return Err(SynthesisError::MalformedVerifyingKey);
+    };
+    if !(ct.len() - 2 == pubkey.t_g2.len() - 1) {
+        // TODO: add new error code
+        return Err(SynthesisError::MalformedVerifyingKey);
+    };
+
+    let mut acc = ext_vk.ic[0].into_projective();
+    // println!("{}", acc);
+    let mut sum_cipher = E::Fqk::one();
+
+    for i in 0..ct.len()-1 {
+        // acc = acc + ct[i];
+        // sum_cipher = sum_cipher * E::pairing(ct[i], pubkey.t_g2[i]);
+        acc.add_assign_mixed(&ct[i]);
+        // println!("{}", acc);
+        sum_cipher.mul_assign(&E::pairing(ct[i], pubkey.t_g2[i]));
+    }
+
+    for i in ct.len()-2..input_size {
+        // acc = acc + unencrypted_primary_input[i - ct.len() + 2] * ext_vk.ic[i + 1];
+        let mut G_i = ext_vk.ic[i + 1].into_projective();
+        // println!("G_i = {}", G_i);
+        G_i.mul_assign(unencrypted_primary_input[i + 2 - ct.len()]);
+        // println!("un = {}", unencrypted_primary_input[i + 2 - ct.len()]);
+        // println!("G_i^ = {}", G_i);
+        acc.add_assign(&G_i);
+        // println!("{}", acc);
+    }
+    let presum_cipher = E::pairing(ct[ct.len()-1], E::G2Affine::one());
+    let ans1: bool = (sum_cipher == presum_cipher);
+    // println!("{}", ans1);
+
+    let QAPl = E::pairing(proof.a, proof.b);
+    // let QAPr = ext_vk.alpha_g1_beta_g2 * E::pairing(acc, ext_vk.gamma_g2) * E::pairing(proof.c, ext_vk.delta_g2);
+    let mut QAPr = ext_vk.alpha_g1_beta_g2;
+    QAPr.mul_assign(&E::pairing(acc, ext_vk.gamma_g2));
+    QAPr.mul_assign(&E::pairing(proof.c, ext_vk.delta_g2));
+    let ans2: bool = (QAPl == QAPr);
+    println!("{}", ans2);
+
+    Ok(ans1 && ans2)
 }
 
 /// Randomized batch verification - see Appendix B.2 in Zcash spec

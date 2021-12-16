@@ -11,7 +11,8 @@ use std::time::Instant;
 
 use crusty3_zk::groth16::{
     create_random_proof_batch, generate_random_parameters, prepare_verifying_key,
-    verify_proofs_batch, Parameters, Proof, VerifyingKey, verify_groth16_proof_from_byteblob
+    verify_proofs_batch, Parameters, Proof, VerifyingKey, verify_groth16_proof_from_byteblob,
+    verify_encrypted_input_groth16_proof_from_byteblob
 };
 use crusty3_zk::{
     bls::{Bls12, Engine, Fr},
@@ -230,15 +231,17 @@ struct Opts {
 fn main() {
     
     use crusty3_zk::bls::{Bls12, Fr, Fq, FqRepr};
-    use crusty3_zk::groth16::{verify_groth16_proof_from_byteblob};
+    use crusty3_zk::groth16::{verify_groth16_proof_from_byteblob, verify_encrypted_input_groth16_proof_from_byteblob};
     use std::fs::read;
     use groupy::{CurveAffine, EncodedPoint};
 
     let mut byteblob = std::fs::read("data.bin").unwrap();
-
     println!("Verification started");
-
     let verified = verify_groth16_proof_from_byteblob::<Bls12>(&byteblob[..]).unwrap();
+    println!("Verified: {}", verified);
 
+    let mut byteblob = std::fs::read("data_encrypted_input.bin").unwrap();
+    println!("Verification started");
+    let verified = verify_encrypted_input_groth16_proof_from_byteblob::<Bls12>(&byteblob[..]).unwrap();
     println!("Verified: {}", verified);
 }
