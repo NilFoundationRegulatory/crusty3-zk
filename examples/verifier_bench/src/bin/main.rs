@@ -241,7 +241,17 @@ fn main() {
     println!("Verified: {}", verified);
 
     let mut byteblob = std::fs::read("data_encrypted_input.bin").unwrap();
-    println!("Verification started");
+    println!("Encrypted input verification started");
+    let verified = verify_encrypted_input_groth16_proof_from_byteblob::<Bls12>(&byteblob[..]).unwrap();
+    println!("Verified: {}", verified);
+
+    let mut byteblob = std::fs::read("data_encrypted_input_wrong_unenc_pi.bin").unwrap();
+    println!("Encrypted input verification started (false expected)");
+    let verified = verify_encrypted_input_groth16_proof_from_byteblob::<Bls12>(&byteblob[..]).unwrap();
+    println!("Verified: {}", verified);
+
+    let mut byteblob = std::fs::read("data_encrypted_input_wrong_ct.bin").unwrap();
+    println!("Encrypted input verification started (false expected)");
     let verified = verify_encrypted_input_groth16_proof_from_byteblob::<Bls12>(&byteblob[..]).unwrap();
     println!("Verified: {}", verified);
 }

@@ -293,38 +293,26 @@ pub fn verify_encrypted_input_proof<'a, E: Engine>(
     };
 
     let mut acc = ext_vk.ic[0].into_projective();
-    // println!("{}", acc);
     let mut sum_cipher = E::Fqk::one();
 
     for i in 0..ct.len()-1 {
-        // acc = acc + ct[i];
-        // sum_cipher = sum_cipher * E::pairing(ct[i], pubkey.t_g2[i]);
         acc.add_assign_mixed(&ct[i]);
-        // println!("{}", acc);
         sum_cipher.mul_assign(&E::pairing(ct[i], pubkey.t_g2[i]));
     }
 
     for i in ct.len()-2..input_size {
-        // acc = acc + unencrypted_primary_input[i - ct.len() + 2] * ext_vk.ic[i + 1];
         let mut G_i = ext_vk.ic[i + 1].into_projective();
-        // println!("G_i = {}", G_i);
         G_i.mul_assign(unencrypted_primary_input[i + 2 - ct.len()]);
-        // println!("un = {}", unencrypted_primary_input[i + 2 - ct.len()]);
-        // println!("G_i^ = {}", G_i);
         acc.add_assign(&G_i);
-        // println!("{}", acc);
     }
     let presum_cipher = E::pairing(ct[ct.len()-1], E::G2Affine::one());
     let ans1: bool = (sum_cipher == presum_cipher);
-    // println!("{}", ans1);
 
     let QAPl = E::pairing(proof.a, proof.b);
-    // let QAPr = ext_vk.alpha_g1_beta_g2 * E::pairing(acc, ext_vk.gamma_g2) * E::pairing(proof.c, ext_vk.delta_g2);
     let mut QAPr = ext_vk.alpha_g1_beta_g2;
     QAPr.mul_assign(&E::pairing(acc, ext_vk.gamma_g2));
     QAPr.mul_assign(&E::pairing(proof.c, ext_vk.delta_g2));
     let ans2: bool = (QAPl == QAPr);
-    println!("{}", ans2);
 
     Ok(ans1 && ans2)
 }
